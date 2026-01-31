@@ -8,7 +8,9 @@ library;
 export 'src/api/models/timeline.dart';
 export 'src/api/models/tweet.dart';
 export 'src/api/models/user.dart';
+export 'src/api/raw_http_x_api.dart';
 export 'src/api/x_api.dart';
+export 'src/api/x_api_exception.dart';
 
 // Auth
 export 'src/auth/authenticated_client.dart';
