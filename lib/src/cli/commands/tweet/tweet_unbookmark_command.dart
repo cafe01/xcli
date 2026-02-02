@@ -3,20 +3,20 @@ import 'package:args/command_runner.dart';
 import '../../../api/x_api.dart';
 import '../../x_runner.dart';
 
-/// Undo a retweet.
+/// Remove a bookmark from a tweet.
 ///
 /// ```
-/// x tweet unretweet <id>
+/// x tweet unbookmark <id>
 /// ```
-class TweetUnretweetCommand extends Command<int> {
+class TweetUnbookmarkCommand extends Command<int> {
   @override
-  String get name => 'unretweet';
+  String get name => 'unbookmark';
 
   @override
-  String get description => 'Undo a retweet.';
+  String get description => 'Remove a bookmark from a tweet.';
 
   @override
-  String get invocation => 'x tweet unretweet <id>';
+  String get invocation => 'x tweet unbookmark <id>';
 
   XApi get _api => (runner! as XCommandRunner).api;
 
@@ -28,10 +28,10 @@ class TweetUnretweetCommand extends Command<int> {
     }
     final id = args.first;
 
-    await _api.unretweet(id);
+    await _api.unbookmarkTweet(id);
 
     // ignore: avoid_print
-    print('Unretweeted tweet $id');
+    print('Unbookmarked tweet $id');
     return 0;
   }
 }

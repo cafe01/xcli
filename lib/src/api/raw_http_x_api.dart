@@ -90,60 +90,128 @@ class RawHttpXApi implements XApi {
     );
   }
 
-  // -- Stubbed methods (future rounds) --
+  // -- Implemented methods (R6.0: Engagement) --
 
   @override
-  Future<void> deleteTweet(String id) => _stub('deleteTweet');
+  Future<void> likeTweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _postVoid(
+      '/users/$userId/likes',
+      body: <String, dynamic>{'tweet_id': tweetId},
+    );
+  }
 
   @override
-  Future<void> likeTweet(String tweetId) => _stub('likeTweet');
+  Future<void> unlikeTweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _deleteRequest('/users/$userId/likes/$tweetId');
+  }
 
   @override
-  Future<void> unlikeTweet(String tweetId) => _stub('unlikeTweet');
+  Future<void> retweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _postVoid(
+      '/users/$userId/retweets',
+      body: <String, dynamic>{'tweet_id': tweetId},
+    );
+  }
 
   @override
-  Future<void> retweet(String tweetId) => _stub('retweet');
+  Future<void> unretweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _deleteRequest('/users/$userId/retweets/$tweetId');
+  }
 
   @override
-  Future<void> unretweet(String tweetId) => _stub('unretweet');
+  Future<void> bookmarkTweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _postVoid(
+      '/users/$userId/bookmarks',
+      body: <String, dynamic>{'tweet_id': tweetId},
+    );
+  }
 
   @override
-  Future<void> bookmarkTweet(String tweetId) => _stub('bookmarkTweet');
+  Future<void> unbookmarkTweet(String tweetId) async {
+    final userId = await _resolveUserId();
+    await _deleteRequest('/users/$userId/bookmarks/$tweetId');
+  }
+
+  // -- Implemented methods (R6.0: Timeline & Search) --
 
   @override
-  Future<void> unbookmarkTweet(String tweetId) => _stub('unbookmarkTweet');
-
-  @override
-  Future<Map<String, dynamic>> getBookmarks({String? paginationToken}) =>
-      _stub('getBookmarks');
-
-  @override
-  Future<Map<String, dynamic>> userTimeline(
-    String userId, {
-    String? paginationToken,
-  }) =>
-      _stub('userTimeline');
-
-  @override
-  Future<Map<String, dynamic>> mentions({String? paginationToken}) =>
-      _stub('mentions');
+  Future<Map<String, dynamic>> mentions({String? paginationToken}) async {
+    final userId = await _resolveUserId();
+    final params = <String, String>{};
+    if (paginationToken != null) {
+      params['pagination_token'] = paginationToken;
+    }
+    return _get('/users/$userId/mentions', queryParams: params);
+  }
 
   @override
   Future<Map<String, dynamic>> searchTweets(
     String query, {
     String? paginationToken,
-  }) =>
-      _stub('searchTweets');
+  }) async {
+    final params = <String, String>{'query': query};
+    if (paginationToken != null) {
+      params['pagination_token'] = paginationToken;
+    }
+    return _get('/tweets/search/recent', queryParams: params);
+  }
+
+  // -- Implemented methods (R8.0: Delete, Follow, Bookmarks, User Timeline) --
+
+  @override
+  Future<void> deleteTweet(String id) async {
+    await _deleteRequest('/tweets/$id');
+  }
+
+  @override
+  Future<Map<String, dynamic>> getBookmarks({
+    String? paginationToken,
+  }) async {
+    final userId = await _resolveUserId();
+    final params = <String, String>{};
+    if (paginationToken != null) {
+      params['pagination_token'] = paginationToken;
+    }
+    return _get('/users/$userId/bookmarks', queryParams: params);
+  }
+
+  @override
+  Future<Map<String, dynamic>> userTimeline(
+    String userId, {
+    String? paginationToken,
+  }) async {
+    final params = <String, String>{};
+    if (paginationToken != null) {
+      params['pagination_token'] = paginationToken;
+    }
+    return _get('/users/$userId/tweets', queryParams: params);
+  }
+
+  @override
+  Future<void> follow(String userId) async {
+    final myUserId = await _resolveUserId();
+    await _postVoid(
+      '/users/$myUserId/following',
+      body: <String, dynamic>{'target_user_id': userId},
+    );
+  }
+
+  @override
+  Future<void> unfollow(String userId) async {
+    final myUserId = await _resolveUserId();
+    await _deleteRequest('/users/$myUserId/following/$userId');
+  }
+
+  // -- Stubbed methods (future rounds) --
 
   @override
   Future<Map<String, dynamic>> searchUsers(String query) =>
       _stub('searchUsers');
-
-  @override
-  Future<void> follow(String userId) => _stub('follow');
-
-  @override
-  Future<void> unfollow(String userId) => _stub('unfollow');
 
   @override
   Future<Map<String, dynamic>> getFollowers(
@@ -198,7 +266,7 @@ class RawHttpXApi implements XApi {
     return _handleResponse(response);
   }
 
-  /// HTTP POST with JSON body.
+  /// HTTP POST with JSON body, returns parsed response.
   Future<Map<String, dynamic>> _post(
     String path, {
     Map<String, dynamic>? body,
@@ -212,10 +280,39 @@ class RawHttpXApi implements XApi {
     return _handleResponse(response);
   }
 
+  /// HTTP POST that expects no meaningful response body.
+  Future<void> _postVoid(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await _client.post(
+      uri,
+      headers: <String, String>{'Content-Type': 'application/json'},
+      body: body != null ? jsonEncode(body) : null,
+    );
+    _handleVoidResponse(response);
+  }
+
+  /// HTTP DELETE request.
+  Future<void> _deleteRequest(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final response = await _client.delete(uri);
+    _handleVoidResponse(response);
+  }
+
   /// Parse response or throw typed exception.
   Map<String, dynamic> _handleResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw XApiException.fromResponse(response.statusCode, response.body);
+  }
+
+  /// Check status code or throw; no body parsing.
+  void _handleVoidResponse(http.Response response) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
     }
     throw XApiException.fromResponse(response.statusCode, response.body);
   }

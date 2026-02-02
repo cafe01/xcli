@@ -9,6 +9,7 @@ import 'tweet_quote_command.dart';
 import 'tweet_reply_command.dart';
 import 'tweet_retweet_command.dart';
 import 'tweet_thread_command.dart';
+import 'tweet_unbookmark_command.dart';
 import 'tweet_unlike_command.dart';
 import 'tweet_unretweet_command.dart';
 import 'tweet_view_command.dart';
@@ -32,6 +33,7 @@ class TweetCommand extends Command<int> {
     addSubcommand(TweetRetweetCommand());
     addSubcommand(TweetUnretweetCommand());
     addSubcommand(TweetBookmarkCommand());
+    addSubcommand(TweetUnbookmarkCommand());
     addSubcommand(TweetBookmarksCommand());
   }
 

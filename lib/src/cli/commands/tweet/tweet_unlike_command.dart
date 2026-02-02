@@ -1,5 +1,8 @@
 import 'package:args/command_runner.dart';
 
+import '../../../api/x_api.dart';
+import '../../x_runner.dart';
+
 /// Unlike a tweet.
 ///
 /// ```
@@ -15,8 +18,20 @@ class TweetUnlikeCommand extends Command<int> {
   @override
   String get invocation => 'x tweet unlike <id>';
 
+  XApi get _api => (runner! as XCommandRunner).api;
+
   @override
   Future<int> run() async {
-    throw UnimplementedError('tweet unlike');
+    final args = argResults!.rest;
+    if (args.isEmpty) {
+      usageException('Missing required argument: <id>');
+    }
+    final id = args.first;
+
+    await _api.unlikeTweet(id);
+
+    // ignore: avoid_print
+    print('Unliked tweet $id');
+    return 0;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:args/command_runner.dart';
 
 import '../../../api/x_api.dart';
+import '../../format.dart';
 import '../../x_runner.dart';
 
 /// View a tweet by ID.
@@ -78,48 +79,12 @@ class TweetViewCommand extends Command<int> {
       return;
     }
 
-    // Resolve author from includes.
-    final includes = response['includes'] as Map<String, dynamic>?;
-    final users = includes?['users'] as List<dynamic>?;
-    Map<String, dynamic>? author;
-    if (users != null && users.isNotEmpty) {
-      author = users.first as Map<String, dynamic>;
-    }
-
-    final text = data['text'] as String? ?? '';
-    final authorName = author?['name'] as String? ?? 'Unknown';
-    final authorUsername = author?['username'] as String? ?? 'unknown';
-    final createdAt = data['created_at'] as String?;
-    final metrics = data['public_metrics'] as Map<String, dynamic>?;
-
-    final buf = StringBuffer();
-
-    // Header: @username (Display Name)
-    buf.writeln('@$authorUsername ($authorName)');
-    buf.writeln();
-
-    // Tweet text
-    buf.writeln(text);
-    buf.writeln();
-
-    // Timestamp
-    if (createdAt != null) {
-      buf.writeln(createdAt);
-    }
-
-    // Metrics
-    if (metrics != null) {
-      final parts = <String>[];
-      final likes = metrics['like_count'];
-      final retweets = metrics['retweet_count'];
-      final replies = metrics['reply_count'];
-      if (likes != null) parts.add('$likes Likes');
-      if (retweets != null) parts.add('$retweets Retweets');
-      if (replies != null) parts.add('$replies Replies');
-      if (parts.isNotEmpty) buf.writeln(parts.join('  '));
-    }
-
     // ignore: avoid_print
-    print(buf.toString().trimRight());
+    print(formatTweetLine(
+      data,
+      includeMetrics: true,
+      detail: true,
+      includes: response['includes'] as Map<String, dynamic>?,
+    ));
   }
 }

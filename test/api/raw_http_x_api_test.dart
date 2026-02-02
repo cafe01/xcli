@@ -45,6 +45,18 @@ void main() {
         ));
   }
 
+  void stubDelete(String urlPattern, {int status = 200, Object? body}) {
+    when(() => mockClient.delete(
+          any(that: predicate<Uri>((uri) => uri.toString().contains(urlPattern))),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+          encoding: any(named: 'encoding'),
+        )).thenAnswer((_) async => http.Response(
+          body is String ? body : jsonEncode(body ?? <String, dynamic>{}),
+          status,
+        ));
+  }
+
   // ===== getTweet =====
 
   group('getTweet', () {
@@ -393,24 +405,158 @@ void main() {
     });
   });
 
+  // ===== deleteTweet =====
+
+  group('deleteTweet', () {
+    test('calls DELETE /2/tweets/:id', () async {
+      stubDelete('/tweets/999', status: 200);
+
+      await api.deleteTweet('999');
+
+      final captured = verify(() => mockClient.delete(
+            captureAny(),
+            headers: any(named: 'headers'),
+          )).captured.single as Uri;
+      expect(captured.path, '/2/tweets/999');
+    });
+
+    test('throws XApiException on error', () async {
+      stubDelete('/tweets/bad', status: 403, body: jsonEncode(<String, dynamic>{
+        'title': 'Forbidden',
+      }));
+
+      expect(
+        () => api.deleteTweet('bad'),
+        throwsA(isA<XApiException>()),
+      );
+    });
+  });
+
+  // ===== follow =====
+
+  group('follow', () {
+    test('resolves userId then posts to /following', () async {
+      stubGet('/users/me', body: <String, dynamic>{
+        'data': <String, dynamic>{'id': '42', 'name': 'Me', 'username': 'me'},
+      });
+      stubPost('/following', status: 200, body: <String, dynamic>{
+        'data': <String, dynamic>{'following': true},
+      });
+
+      await api.follow('target-123');
+
+      final captured = verify(() => mockClient.post(
+            captureAny(),
+            headers: captureAny(named: 'headers'),
+            body: captureAny(named: 'body'),
+            encoding: any(named: 'encoding'),
+          )).captured;
+      final uri = captured[0] as Uri;
+      final reqBody =
+          jsonDecode(captured[2] as String) as Map<String, dynamic>;
+      expect(uri.path, '/2/users/42/following');
+      expect(reqBody['target_user_id'], 'target-123');
+    });
+  });
+
+  // ===== unfollow =====
+
+  group('unfollow', () {
+    test('resolves userId then deletes /following/:target', () async {
+      stubGet('/users/me', body: <String, dynamic>{
+        'data': <String, dynamic>{'id': '42', 'name': 'Me', 'username': 'me'},
+      });
+      stubDelete('/following/target-456', status: 200);
+
+      await api.unfollow('target-456');
+
+      verify(() => mockClient.delete(
+            any(that: predicate<Uri>(
+                (u) => u.path == '/2/users/42/following/target-456')),
+            headers: any(named: 'headers'),
+          )).called(1);
+    });
+  });
+
+  // ===== userTimeline =====
+
+  group('userTimeline', () {
+    test('calls GET /2/users/:id/tweets', () async {
+      stubGet('/users/77/tweets', body: <String, dynamic>{
+        'data': <dynamic>[
+          <String, dynamic>{'id': '1', 'text': 'Tweet'},
+        ],
+      });
+
+      final result = await api.userTimeline('77');
+      expect(result['data'], isA<List<dynamic>>());
+
+      final captured = verify(() => mockClient.get(
+            captureAny(),
+            headers: any(named: 'headers'),
+          )).captured.single as Uri;
+      expect(captured.path, '/2/users/77/tweets');
+    });
+
+    test('passes pagination token', () async {
+      stubGet('/users/77/tweets', body: <String, dynamic>{
+        'data': <dynamic>[],
+      });
+
+      await api.userTimeline('77', paginationToken: 'next-page');
+
+      final captured = verify(() => mockClient.get(
+            captureAny(
+                that: predicate<Uri>(
+                    (u) => u.path.contains('/users/77/tweets'))),
+            headers: any(named: 'headers'),
+          )).captured.single as Uri;
+      expect(captured.queryParameters['pagination_token'], 'next-page');
+    });
+  });
+
+  // ===== getBookmarks =====
+
+  group('getBookmarks', () {
+    test('resolves userId then calls GET /bookmarks', () async {
+      stubGet('/users/me', body: <String, dynamic>{
+        'data': <String, dynamic>{'id': '42', 'name': 'Me', 'username': 'me'},
+      });
+      stubGet('/bookmarks', body: <String, dynamic>{
+        'data': <dynamic>[
+          <String, dynamic>{'id': '500', 'text': 'Bookmarked tweet'},
+        ],
+      });
+
+      final result = await api.getBookmarks();
+      expect(result['data'], isA<List<dynamic>>());
+    });
+
+    test('passes pagination token', () async {
+      stubGet('/users/me', body: <String, dynamic>{
+        'data': <String, dynamic>{'id': '42', 'name': 'Me', 'username': 'me'},
+      });
+      stubGet('/bookmarks', body: <String, dynamic>{
+        'data': <dynamic>[],
+      });
+
+      await api.getBookmarks(paginationToken: 'page2');
+
+      final captured = verify(() => mockClient.get(
+            captureAny(
+                that: predicate<Uri>(
+                    (u) => u.path.contains('/bookmarks'))),
+            headers: any(named: 'headers'),
+          )).captured.single as Uri;
+      expect(captured.queryParameters['pagination_token'], 'page2');
+    });
+  });
+
   // ===== Stubs =====
 
   group('stubbed methods', () {
     test('throw UnimplementedError', () {
-      expect(() => api.deleteTweet('1'), throwsUnimplementedError);
-      expect(() => api.likeTweet('1'), throwsUnimplementedError);
-      expect(() => api.unlikeTweet('1'), throwsUnimplementedError);
-      expect(() => api.retweet('1'), throwsUnimplementedError);
-      expect(() => api.unretweet('1'), throwsUnimplementedError);
-      expect(() => api.bookmarkTweet('1'), throwsUnimplementedError);
-      expect(() => api.unbookmarkTweet('1'), throwsUnimplementedError);
-      expect(() => api.getBookmarks(), throwsUnimplementedError);
-      expect(() => api.userTimeline('1'), throwsUnimplementedError);
-      expect(() => api.mentions(), throwsUnimplementedError);
-      expect(() => api.searchTweets('q'), throwsUnimplementedError);
       expect(() => api.searchUsers('q'), throwsUnimplementedError);
-      expect(() => api.follow('1'), throwsUnimplementedError);
-      expect(() => api.unfollow('1'), throwsUnimplementedError);
       expect(() => api.getFollowers('1'), throwsUnimplementedError);
       expect(() => api.getFollowing('1'), throwsUnimplementedError);
       expect(() => api.blockUser('1'), throwsUnimplementedError);

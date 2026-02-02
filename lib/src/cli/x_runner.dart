@@ -16,6 +16,7 @@ import 'commands/search/search_command.dart';
 import 'commands/timeline/timeline_command.dart';
 import 'commands/tweet/tweet_command.dart';
 import 'commands/user/user_command.dart';
+import 'format.dart';
 
 /// Top-level command runner for the X CLI.
 ///
@@ -62,6 +63,11 @@ class XCommandRunner extends CommandRunner<int> {
       negatable: false,
       help: 'Enable verbose output.',
     );
+    argParser.addFlag(
+      'no-color',
+      negatable: false,
+      help: 'Disable colored output.',
+    );
   }
 
   final XApi? _injectedApi;
@@ -91,6 +97,11 @@ class XCommandRunner extends CommandRunner<int> {
   Future<int?> run(Iterable<String> args) async {
     try {
       final results = parse(args);
+
+      // Respect --no-color flag and NO_COLOR env var (https://no-color.org).
+      final noColorFlag = results['no-color'] as bool? ?? false;
+      final noColorEnv = Platform.environment.containsKey('NO_COLOR');
+      colorEnabled = !noColorFlag && !noColorEnv;
 
       if (results['version'] == true) {
         // ignore: avoid_print
