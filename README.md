@@ -1,3 +1,13 @@
+> ## ⚠️ ARCHIVED
+>
+> This repository is archived. The codebase is no longer maintained.
+>
+> **What happened:** X.com released an official CLI. This home-grown replacement is retired.
+>
+> 🌐 [bentos.life](https://bentos.life)
+
+---
+
 # xcli
 
 The `gh` equivalent for X.com. Same mental model as web/mobile, expressed as CLI subcommands.
